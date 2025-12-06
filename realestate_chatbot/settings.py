@@ -6,9 +6,14 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "dev-secret-key-change-in-prod"
-DEBUG = True
+SECRET_KEY = os.getenv("SECRET_KEY", "dev-key")
+DEBUG = False
+
 ALLOWED_HOSTS = ["*"]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.onrender.com",
+]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -20,6 +25,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "api",
 ]
+
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
@@ -31,19 +37,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ALLOWED_HOSTS = [
-    "*",
-    "web-production-14a2c.up.railway.app",
-]
-
-CORS_ALLOWED_ORIGINS = [
-    "https://gleaming-blancmange-d662c8.netlify.app",
-]
-
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_HEADERS = ["*"]
-CORS_ALLOW_METHODS = ["GET", "POST", "OPTIONS"]
-CORS_ALLOW_PRIVATE_NETWORK = True
+CORS_ALLOW_ALL_ORIGINS = True  # OK for now, change in prod
 
 ROOT_URLCONF = "realestate_chatbot.urls"
 
@@ -77,13 +71,11 @@ TIME_ZONE = "Asia/Kolkata"
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-CORS_ALLOW_ALL_ORIGINS = True  # dev only
-
-# Path to your Excel data file
 EXCEL_PATH = os.path.join(BASE_DIR, "data", "Sample_data.xlsx")
 
-# Optional OpenAI key for nicer summaries
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")

@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: realestate-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn realestate_chatbot.wsgi:application --bind 0.0.0.0:$PORT
+    autoDeploy: true

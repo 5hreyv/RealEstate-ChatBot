@@ -6,3 +6,4 @@ django-cors-headers
 python-dotenv
 numpy
 reportlab
+openai
