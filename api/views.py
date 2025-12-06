@@ -199,3 +199,10 @@ def download_report_view(request):
     response = HttpResponse(buffer, content_type="application/pdf")
     response["Content-Disposition"] = 'attachment; filename=\"real_estate_report.pdf\"'
     return response
+
+@csrf_exempt
+def list_localities(request):
+    from .utils import get_dataset
+    df = get_dataset()
+    locs = sorted(df["final_location"].dropna().unique().tolist())
+    return JsonResponse({"localities": locs})
