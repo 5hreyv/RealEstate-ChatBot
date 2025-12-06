@@ -224,7 +224,7 @@ def debug_localities(request):
         return JsonResponse({
             "ok": True,
             "count": len(areas),
-            "sample": areas[:50],   # first 50
+            "sample": areas[:50],
         })
 
     except Exception as e:
