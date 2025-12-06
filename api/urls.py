@@ -1,5 +1,10 @@
 from django.urls import path
-from .views import query_view, download_csv_view, download_report_view, list_localities
+from .views import (
+    query_view,
+    download_csv_view,
+    download_report_view,
+    list_localities,
+)
 
 urlpatterns = [
     path("query/", query_view),
