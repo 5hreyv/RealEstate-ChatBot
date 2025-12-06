@@ -1,10 +1,8 @@
-from django.urls import path
-from . import views
+from .views import query_view, download_csv_view, download_report_view, list_localities
 
 urlpatterns = [
-    path("query/", views.query_view),
-    path("download_csv/", views.download_csv_view),
-    path("report_pdf/", views.download_report_view),
-    path("localities/", views.list_localities),
-    path("debug_localities/", views.debug_localities),
+    path("query/", query_view),
+    path("download_csv/", download_csv_view),
+    path("report_pdf/", download_report_view),
+    path("localities/", list_localities),
 ]
