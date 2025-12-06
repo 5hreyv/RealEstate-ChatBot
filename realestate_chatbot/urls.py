@@ -4,10 +4,7 @@ from django.http import JsonResponse
 
 
 def home(request):
-    return JsonResponse({
-        "status": "Backend running",
-        "api_base": "/api/"
-    })
+    return JsonResponse({"status": "Backend running", "api_base": "/api/"})
 
 
 urlpatterns = [
