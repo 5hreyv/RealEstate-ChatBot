@@ -1,15 +1,15 @@
 import json
 import textwrap
 from io import BytesIO
-from . import views
+
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
-from django.http import JsonResponse
-from .utils import get_dataset, SCHEMA
 
 from .utils import (
+    SCHEMA,
+    get_dataset,
     extract_areas_from_message,
     extract_cities_from_message,
     extract_year_range,
@@ -123,10 +123,12 @@ def download_report_view(request):
     width, height = A4
     y = height - 40
 
+    # Title
     p.setFont("Helvetica-Bold", 16)
     p.drawString(40, y, "Real Estate Analysis Report")
     y -= 24
 
+    # Scope
     p.setFont("Helvetica", 10)
     label_parts = []
     if areas:
@@ -142,6 +144,7 @@ def download_report_view(request):
         p.drawString(40, y, f"Years: {year_range[0]} – {year_range[1]}")
         y -= 18
 
+    # Summary section
     p.setFont("Helvetica-Bold", 11)
     p.drawString(40, y, "Summary")
     y -= 16
@@ -155,6 +158,7 @@ def download_report_view(request):
         p.drawString(40, y, line)
         y -= 14
 
+    # Locality insights
     if insights["areas"]:
         if y < 80:
             p.showPage()
@@ -220,6 +224,7 @@ def list_localities(request):
         areas = sorted(areas)
         return JsonResponse({"localities": areas})
     except Exception as e:
+        # Safe fallback so frontend autosuggest still works
         fallback = ["Akurdi", "Ambegaon Budruk", "Aundh", "Wakad"]
         return JsonResponse(
             {
@@ -232,6 +237,9 @@ def list_localities(request):
 
 @csrf_exempt
 def debug_localities(request):
+    """
+    Debug endpoint to inspect what areas are being loaded from Excel.
+    """
     try:
         df = get_dataset()
         areas = (
@@ -242,16 +250,22 @@ def debug_localities(request):
             .tolist()
         )
 
-        return JsonResponse({
-            "ok": True,
-            "count": len(areas),
-            "sample": areas[:50],
-        })
+        return JsonResponse(
+            {
+                "ok": True,
+                "count": len(areas),
+                "sample": areas[:50],
+            }
+        )
 
     except Exception as e:
         import traceback
-        return JsonResponse({
-            "ok": False,
-            "error": str(e),
-            "trace": traceback.format_exc(),
-        }, status=500)
+
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": str(e),
+                "trace": traceback.format_exc(),
+            },
+            status=500,
+        )
