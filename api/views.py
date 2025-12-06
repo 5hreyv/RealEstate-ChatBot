@@ -7,6 +7,9 @@ from django.views.decorators.csrf import csrf_exempt
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from .utils import get_dataset, SCHEMA
 
 from .utils import (
     extract_areas_from_message,
@@ -203,10 +206,9 @@ def download_report_view(request):
 
 @csrf_exempt
 def list_localities(request):
-    from .utils import get_dataset
     df = get_dataset()
-    locs = sorted(df["final_location"].dropna().unique().tolist())
-    return JsonResponse({"localities": locs})
+    areas = df[SCHEMA["area"]].dropna().astype(str).unique().tolist()
+    return JsonResponse({"localities": areas})
 
 
 @csrf_exempt
