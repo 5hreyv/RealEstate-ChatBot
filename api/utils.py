@@ -463,8 +463,3 @@ def build_llm_summary(filtered_df, areas, cities, year_range, metric: str) -> st
         return resp.output[0].content[0].text
     except Exception:
         return basic
-@csrf_exempt
-def debug_localities(request):
-    df = get_dataset()
-    areas = df[SCHEMA["area"]].dropna().astype(str).unique().tolist()
-    return JsonResponse({"localities": areas})
