@@ -376,24 +376,23 @@ def build_basic_summary(filtered_df, areas, cities, year_range, metric):
 
     return " ".join(parts)
 
-
-def build_llm_summary(filtered_df, areas, cities, year_range, metric):
+def build_llm_summary(filtered_df, areas, cities, year_range, metric: str) -> str:
     """
-    Wraps summary with LLM enhancement IF API key exists.
+    Safe fallback summary generator – never crashes backend.
     """
     basic = build_basic_summary(filtered_df, areas, cities, year_range, metric)
 
+    # If no OpenAI client or filtered_df empty → return basic
     if client is None or filtered_df.empty:
         return basic
 
+    # Try LLM, but if ANY error occurs → return basic summary
     try:
-        response = client.responses.create(
+        resp = client.responses.create(
             model="gpt-4.1-mini",
-            input=(
-                "Rewrite this real estate summary in friendly, simpler words:\n\n"
-                f"{basic}"
-            ),
+            input=basic,
         )
-        return response.output[0].content[0].text
-    except Exception:
+        # New OpenAI format
+        return resp.output[0].content[0].text
+    except Exception as e:
         return basic
