@@ -42,19 +42,6 @@ def query_view(request):
         year_range=year_range,
         cities=cities or None,
     )
-    # If user requested localities not present in dataset → FAIL CLEANLY
-if filtered_df is None or filtered_df.empty:
-    return JsonResponse({
-        "summary": f"No data found for {areas or cities}. "
-                   f"Try one of these instead: {get_dataset()['final_location'].unique().tolist()[:10]}",
-        "chart": {"labels": [], "datasets": []},
-        "table": [],
-        "areas": areas,
-        "cities": cities,
-        "metric": metric,
-        "year_range": year_range,
-        "insights": {},
-    })
 
     chart = build_chart_data(filtered_df, metric=metric)
     table = build_table_data(filtered_df)
@@ -219,3 +206,25 @@ def list_localities(request):
     df = get_dataset()
     locs = sorted(df["final_location"].dropna().unique().tolist())
     return JsonResponse({"localities": locs})
+
+@csrf_exempt
+def debug_localities(request):
+    from django.conf import settings
+    import traceback
+
+    try:
+        df = get_dataset()
+        areas = df[SCHEMA["area"]].dropna().astype(str).unique().tolist()
+
+        return JsonResponse({
+            "ok": True,
+            "excel_path": settings.EXCEL_PATH,
+            "count": len(areas),
+            "sample": areas[:30]
+        })
+    except Exception as e:
+        return JsonResponse({
+            "ok": False,
+            "error": str(e),
+            "trace": traceback.format_exc()
+        }, status=500)
