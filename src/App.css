@@ -84,3 +84,155 @@ body {
   border: 1px solid #e2e8f0;
   overflow: hidden;
 }
+.typing-dot {
+  animation: blink 1.2s infinite;
+  opacity: 0;
+  margin-left: 2px;
+}
+
+.typing-dot:nth-child(1) {
+  animation-delay: 0ms;
+}
+.typing-dot:nth-child(2) {
+  animation-delay: 200ms;
+}
+.typing-dot:nth-child(3) {
+  animation-delay: 400ms;
+}
+
+@keyframes blink {
+  0% { opacity: 0; }
+  50% { opacity: 1; }
+  100% { opacity: 0; }
+}
+/* Suggestion dropdown */
+.suggestion-box {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 6px 0;
+  margin-top: -8px;
+  margin-bottom: 10px;
+  position: absolute;
+  width: 100%;
+  z-index: 20;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+}
+
+.suggestion-item {
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.suggestion-item:hover {
+  background: #f1f5f9;
+}
+
+/* Smart prompts */
+.smart-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.smart-chip {
+  background: #eef2ff;
+  padding: 6px 10px;
+  border-radius: 14px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border: 1px solid #c7d2fe;
+  transition: all 0.2s ease;
+}
+
+.smart-chip:hover {
+  background: #e0e7ff;
+  transform: translateY(-1px);
+}
+
+
+.prompt-chip {
+  padding: 6px 10px;
+  background: #f3f4f6;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: 0.2s;
+  border: 1px solid #e5e7eb;
+}
+
+.prompt-chip:hover {
+  background: #e2e8f0;
+}
+.insight-card {
+  transition: 0.2s ease;
+}
+
+.insight-card:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.07);
+}
+
+.suggestion-chip {
+  border-radius: 20px !important;
+  padding: 4px 14px !important;
+  font-size: 0.8rem !important;
+  transition: 0.2s ease;
+}
+
+.suggestion-chip:hover {
+  background: #e0f2fe !important;
+  transform: translateY(-2px);
+}
+
+.suggestion-carousel {
+  border-radius: 10px;
+  padding: 4px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+}
+.heatmap-box {
+  border-radius: 4px;
+  height: 12px;
+  transition: 0.15s ease;
+}
+
+.heatmap-box:hover {
+  transform: scale(1.15);
+}
+
+.sparkline {
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.suggestion-chip {
+  display: inline-block;
+  padding: 4px 10px;
+  margin-right: 6px;
+  margin-top: 6px;
+  background: #eef2ff;
+  color: #4338ca;
+  border-radius: 14px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: 0.15s ease;
+}
+
+.suggestion-chip:hover {
+  background: #c7d2fe;
+}
+.followup-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 8px 10px;
+  border-radius: 12px;
+}
+
+.followup-chip {
+  border-radius: 12px !important;
+  font-size: 0.75rem;
+  padding: 2px 8px !important;
+  cursor: pointer;
+}
