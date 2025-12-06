@@ -1,3 +1,4 @@
+// src/App.js
 import React, { useState, useEffect } from "react";
 import api from "./api";
 import useTypingEffect from "./hooks/useTypingEffect";
@@ -5,7 +6,6 @@ import "./App.css";
 
 import { generateInsightCards } from "./utils/insightEngine";
 import { generateSuggestions } from "./utils/suggestionEngine";
-
 import {
   enhanceTone,
   detectUserTone,
@@ -39,29 +39,32 @@ import {
 } from "recharts";
 
 function App() {
+  // -----------------------------
+  // Core state
+  // -----------------------------
   const [message, setMessage] = useState("");
   const [history, setHistory] = useState([]);
   const [metric, setMetric] = useState("price");
   const [responseData, setResponseData] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Localities loaded from backend
+  // Localities from backend
   const [localities, setLocalities] = useState([]);
 
-  // For locality auto-suggest (dropdown under input)
+  // Input locality suggestions (dropdown under textbox)
   const [localitySuggestions, setLocalitySuggestions] = useState([]);
   const [showLocalitySuggestions, setShowLocalitySuggestions] = useState(false);
 
-  // Dynamic suggested queries (carousel) based on last answer
+  // Dynamic follow-up suggestion chips based on last response
   const [dynamicSuggestions, setDynamicSuggestions] = useState([]);
 
-  // Higher-level follow-up suggestions based on intent + areas
+  // Higher-level follow-up prompts based on intent + locality
   const [followUps, setFollowUps] = useState([]);
 
-  // Intent memory
+  // Intent memory (for future extensions / debugging)
   const [intent, setIntent] = useState(null);
 
-  // Memory of what the user has explored
+  // Memory of user context across questions
   const [memory, setMemory] = useState({
     localities: [],
     preferredMetric: "price",
@@ -69,11 +72,13 @@ function App() {
     lastYears: [],
   });
 
-  // For animated typing of the latest main bot message
+  // Typing animation for the *latest* main bot answer
   const [botRawText, setBotRawText] = useState("");
-  const botDisplayText = useTypingEffect(botRawText, 15); // speed ms per char
+  const botDisplayText = useTypingEffect(botRawText, 15); // ms/char
 
-  // --- INITIAL LOAD: localities from backend ---
+  // -----------------------------
+  // Initial: fetch localities for autosuggest
+  // -----------------------------
   useEffect(() => {
     api
       .get("/localities/")
@@ -81,17 +86,15 @@ function App() {
       .catch(() => setLocalities([]));
   }, []);
 
-  // --- Helper: extract localities from text using the known list ---
+  // -----------------------------
+  // Helpers
+  // -----------------------------
   const extractLocalities = (text) => {
     if (!localities || localities.length === 0) return [];
     const t = text.toLowerCase();
-
-    return localities.filter((loc) =>
-      t.includes(loc.toLowerCase())
-    );
+    return localities.filter((loc) => t.includes(loc.toLowerCase()));
   };
 
-  // --- Helper: extract intent from message ---
   const extractIntent = (text) => {
     const t = text.toLowerCase();
 
@@ -105,19 +108,18 @@ function App() {
     return "general";
   };
 
-  // --- Helper: generate follow-up suggestions based on areas + metric + intent ---
   const generateFollowUps = (areas, metricValue, intentValue) => {
     if (!areas || areas.length === 0) return [];
 
-    let sugs = [];
     const a = areas[0];
+    let sugs = [];
 
-    // General smart suggestions
+    // General
     sugs.push(`Show me forecasted prices for ${a}`);
     sugs.push(`Compare ${a} with another locality`);
     sugs.push(`What drives demand in ${a}?`);
 
-    // Intent-specific suggestions
+    // Intent-specific
     if (intentValue === "comparison") {
       sugs.push(`Compare ${a} with 2 more nearby areas`);
       sugs.push(`Which locality has better long-term growth than ${a}?`);
@@ -138,7 +140,6 @@ function App() {
       sugs.push(`Show CAGR comparison for ${a}`);
     }
 
-    // Metric-specific
     if (metricValue === "price" || metricValue === "both") {
       sugs.push(`Show historical price appreciation for ${a}`);
     }
@@ -149,13 +150,17 @@ function App() {
     return sugs.slice(0, 6);
   };
 
-  // Auto-scroll chat to bottom whenever history or loading changes
+  // -----------------------------
+  // Auto-scroll chat
+  // -----------------------------
   useEffect(() => {
     const box = document.querySelector(".chat-scroll");
     if (box) box.scrollTop = box.scrollHeight;
   }, [history, loading]);
 
-  // Filter localities for dropdown based on message text
+  // -----------------------------
+  // Locality autosuggest (input-based)
+  // -----------------------------
   useEffect(() => {
     if (!message.trim()) {
       setLocalitySuggestions([]);
@@ -171,22 +176,29 @@ function App() {
     setShowLocalitySuggestions(match.length > 0);
   }, [message, localities]);
 
-  // --------------------------
-  // MAIN SEND HANDLER
-  // --------------------------
-  const handleSend = async (e) => {
+  // -----------------------------
+  // Main send handler
+  // Supports both:
+  //  - form submit (event)
+  //  - programmatic calls with textOverride
+  // -----------------------------
+  const handleSend = async (e, textOverride) => {
     e?.preventDefault();
-    if (!message.trim()) return;
 
-    // Add user message + placeholder bot message
+    const outgoing = (textOverride ?? message).trim();
+    if (!outgoing) return;
+
+    // Add user message + bot typing placeholder
     setHistory((prev) => [
       ...prev,
-      { from: "user", text: message },
-      { from: "bot", text: "__typing__" },
+      { from: "user", text: outgoing },
+      { from: "bot", text: "__typing__", kind: "typing" },
     ]);
 
-    // MEMORY: detect localities
-    const locsInMessage = extractLocalities(message);
+    // Memory + intent for this turn
+    const locsInMessage = extractLocalities(outgoing);
+    const detectedIntent = extractIntent(outgoing);
+    setIntent(detectedIntent);
 
     setMemory((prev) => ({
       ...prev,
@@ -196,42 +208,41 @@ function App() {
         locsInMessage.length > 1 ? locsInMessage : prev.lastCompared,
     }));
 
-    // detect intent early
-    const detectedIntent = extractIntent(message);
-    setIntent(detectedIntent);
-
     setLoading(true);
 
     try {
-      // Build enhanced message using memory
-      let enhancedMessage = message;
+      // Build enhanced query text with context from memory
+      // Build enhanced query text with context from memory
+let enhancedMessage = outgoing;
 
-      if (
-        !message.toLowerCase().includes("compare") &&
-        memory.localities.length > 0
-      ) {
-        enhancedMessage += ` (context: previously explored ${memory.localities.join(
-          ", "
-        )})`;
-      }
+// ONLY add memory context if user actually mentioned a valid locality
+if (
+  locsInMessage.length > 0 &&               // user mentioned valid locality
+  memory.localities.length > 0 &&
+  !outgoing.toLowerCase().includes("compare")
+) {
+  enhancedMessage += ` (context: previously explored ${memory.localities.join(", ")})`;
+}
 
-      if (
-        memory.lastYears.length === 2 &&
-        !message.toLowerCase().includes("year")
-      ) {
-        enhancedMessage += ` using ${memory.lastYears[0]}-${memory.lastYears[1]}`;
-      }
+// Add last known year range ONLY if user didn't override
+if (
+  memory.lastYears.length === 2 &&
+  !outgoing.toLowerCase().includes("year")
+) {
+  enhancedMessage += ` using ${memory.lastYears[0]}-${memory.lastYears[1]}`;
+}
 
-      if (
-        memory.lastCompared.length >= 2 &&
-        !message.toLowerCase().includes("compare")
-      ) {
-        enhancedMessage += ` (previous comparison: ${memory.lastCompared.join(
-          " vs "
-        )})`;
-      }
+// Add previous comparison context ONLY if relevant
+if (
+  memory.lastCompared.length >= 2 &&
+  !outgoing.toLowerCase().includes("compare") &&
+  locsInMessage.length >= 2       // only if user actively comparing again
+) {
+  enhancedMessage += ` (previous comparison: ${memory.lastCompared.join(" vs ")})`;
+}
 
-      // API Call
+
+      // Call backend
       const res = await api.post("/query/", {
         message: enhancedMessage,
         metric: memory.preferredMetric,
@@ -240,7 +251,7 @@ function App() {
       const data = res.data;
       setResponseData(data);
 
-      // store years in memory
+      // Store years in memory if backend parsed them
       if (data.year_range && data.year_range.length === 2) {
         setMemory((prev) => ({
           ...prev,
@@ -248,19 +259,18 @@ function App() {
         }));
       }
 
-      // Dynamic suggestions (Step 8)
-      setDynamicSuggestions(generateSuggestions(message, data));
+      // Dynamic suggestions from engine
+      setDynamicSuggestions(generateSuggestions(outgoing, data));
 
-      // Tone analysis (Step 6)
-      const userTone = detectUserTone(message);
-
+      // Tone + narrative
+      const userTone = detectUserTone(outgoing);
       let finalText = data.summary || "No summary available.";
       finalText = enhanceTone(finalText, data);
       finalText = applyToneStyle(finalText, userTone);
 
-      setBotRawText(finalText); // animate bot message
+      setBotRawText(finalText);
 
-      // Replace typing placeholder → final bot message, plus meta messages
+      // Replace typing placeholder with answer + meta messages
       setHistory((prev) => {
         const newHist = [...prev];
         const idx = newHist
@@ -274,19 +284,19 @@ function App() {
           newHist.push({ from: "bot", text: finalText, kind: "summary" });
         }
 
-        // Intent acknowledgment (Step 12F)
+        // Intent acknowledgement (if non-general)
         if (detectedIntent && detectedIntent !== "general") {
           newHist.push({
             from: "bot",
-            text: `Got it — you're focusing on **${detectedIntent.replace(
+            text: `Got it — you're focusing on ${detectedIntent.replace(
               "-",
               " "
-            )}**. Tailoring insights accordingly.`,
+            )}. I'll tailor the insights accordingly.`,
             kind: "meta",
           });
         }
 
-        // Memory reinforcement (Step 10F)
+        // Memory reinforcement
         if (locsInMessage.length > 0) {
           newHist.push({
             from: "bot",
@@ -297,14 +307,13 @@ function App() {
           });
         }
 
-        // Follow-ups (Step 11 + 12)
+        // Follow-up prompts
         setFollowUps(generateFollowUps(locsInMessage, metric, detectedIntent));
 
         return newHist;
       });
     } catch (err) {
       console.error(err);
-
       setHistory((prev) => {
         const newHist = prev.filter((m) => m.text !== "__typing__");
         return [
@@ -317,13 +326,13 @@ function App() {
       });
     } finally {
       setLoading(false);
-      setMessage("");
+      if (!textOverride) setMessage("");
     }
   };
 
-  // --------------------------
-  // CHART DATA
-  // --------------------------
+  // -----------------------------
+  // Chart data
+  // -----------------------------
   const chartData =
     responseData && responseData.chart
       ? responseData.chart.labels.map((year, idx) => {
@@ -335,6 +344,9 @@ function App() {
         })
       : [];
 
+  // -----------------------------
+  // Download handlers
+  // -----------------------------
   const handleDownloadCsv = () => {
     if (!responseData) return;
     const areas = responseData.areas || [];
@@ -347,9 +359,11 @@ function App() {
       params.set("start_year", yr[0]);
       params.set("end_year", yr[1]);
     }
-    const url = `${process.env.REACT_APP_API_URL}download_csv/?${params.toString()}`;
+    const url = `${API_BASE}download_csv/?${params.toString()}`;
+
     window.open(url, "_blank");
   };
+  const API_BASE = "https://web-production-14a2c.up.railway.app/api/";
 
   const handleDownloadPdf = () => {
     if (!responseData) return;
@@ -364,7 +378,8 @@ function App() {
       params.set("end_year", yr[1]);
     }
     params.set("metric", metric);
-    const url = `${process.env.REACT_APP_API_URL}report_pdf/?${params.toString()}`;
+    const url = `${API_BASE}report_pdf/?${params.toString()}`;
+
     window.open(url, "_blank");
   };
 
@@ -377,6 +392,14 @@ function App() {
     "Show price and demand trend for a locality between 2015 and 2020",
     "Which looks better for investment between <A> and <B>?",
   ];
+
+  // Precompute last animated bot index to keep map cleaner
+  const lastAnimatedBotIndex = history
+    .map((m, i) => ({ ...m, i }))
+    .filter(
+      (m) => m.from === "bot" && m.text !== "__typing__" && m.kind !== "meta"
+    )
+    .slice(-1)[0]?.i;
 
   return (
     <Container fluid className="py-4 app-shell">
@@ -467,7 +490,7 @@ function App() {
                 )}
 
                 {history.map((msg, idx) => {
-                  // USER MESSAGE
+                  // User messages
                   if (msg.from === "user") {
                     return (
                       <div key={idx} className="mb-2 text-end">
@@ -491,7 +514,7 @@ function App() {
                     );
                   }
 
-                  // BOT TYPING PLACEHOLDER
+                  // Bot typing placeholder
                   if (msg.text === "__typing__") {
                     return (
                       <div key={idx} className="mb-2 text-start">
@@ -517,23 +540,13 @@ function App() {
                     );
                   }
 
-                  // BOT FINAL / META MESSAGES
-                  const lastAnimatedIndex = history
-                    .map((m, i2) => ({ ...m, i2 }))
-                    .filter(
-                      (m) =>
-                        m.from === "bot" &&
-                        m.text !== "__typing__" &&
-                        m.kind !== "meta"
-                    )
-                    .slice(-1)[0]?.i2;
-
-                  const isLatestBot =
+                  // Bot final or meta messages
+                  const isLatestAnimated =
                     msg.from === "bot" &&
                     msg.kind !== "meta" &&
-                    idx === lastAnimatedIndex;
+                    idx === lastAnimatedBotIndex;
 
-                  const textToShow = isLatestBot
+                  const textToShow = isLatestAnimated
                     ? botDisplayText || msg.text
                     : msg.text;
 
@@ -569,7 +582,7 @@ function App() {
                 )}
               </div>
 
-              {/* Dynamic suggestions carousel (Step 8) */}
+              {/* Dynamic suggestions carousel */}
               {dynamicSuggestions.length > 0 && (
                 <div className="suggestion-carousel mb-2">
                   <div className="d-flex gap-2 overflow-auto py-1">
@@ -581,7 +594,7 @@ function App() {
                         className="flex-shrink-0 suggestion-chip"
                         onClick={() => {
                           setMessage(s);
-                          handleSend({ preventDefault: () => {} });
+                          handleSend(null, s);
                         }}
                       >
                         {s}
@@ -591,7 +604,7 @@ function App() {
                 </div>
               )}
 
-              {/* Follow-up suggestions (Step 11/12) */}
+              {/* Follow-up suggestions */}
               {followUps.length > 0 && (
                 <div className="followup-box mb-2">
                   <div className="small text-muted mb-1">
@@ -617,14 +630,14 @@ function App() {
               <div className="smart-prompts mt-2">
                 <span
                   className="prompt-chip"
-                  onClick={() => setMessage("Analyze Wagholi")}
+                  onClick={() => setMessage("Analyze Wakad")}
                 >
                   Analyze a locality
                 </span>
 
                 <span
                   className="prompt-chip"
-                  onClick={() => setMessage("Compare Baner and Wakad")}
+                  onClick={() => setMessage("Compare Ambegaon Budruk and Aundh")}
                 >
                   Compare areas
                 </span>
@@ -632,9 +645,7 @@ function App() {
                 <span
                   className="prompt-chip"
                   onClick={() =>
-                    setMessage(
-                      "Show price trend for Kharadi from 2015 to 2023"
-                    )
+                    setMessage("Show price trend for Akurdi from 2015 to 2023")
                   }
                 >
                   Price trend
@@ -644,7 +655,7 @@ function App() {
                   className="prompt-chip"
                   onClick={() =>
                     setMessage(
-                      "Which is better for investment: Aundh or Balewadi?"
+                      "Which is better for investment: Aundh or Akurdi?"
                     )
                   }
                 >
@@ -652,10 +663,11 @@ function App() {
                 </span>
               </div>
 
+              {/* Input + locality suggestions */}
               <Form onSubmit={handleSend}>
                 <Form.Control
                   type="text"
-                  placeholder='Ex: "Compare two localities you see in Sample_data"'
+                  placeholder='Ex: "Compare two localities"'
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onFocus={() =>
@@ -666,7 +678,6 @@ function App() {
                   autoComplete="off"
                 />
 
-                {/* Locality auto-suggest dropdown */}
                 {showLocalitySuggestions && (
                   <div className="suggestion-box">
                     {localitySuggestions.map((s, idx) => (
@@ -738,7 +749,7 @@ function App() {
         <Col lg={8}>
           {responseData ? (
             <>
-              {/* Insight cards */}
+              {/* Insight cards + micro insights */}
               {insights &&
                 insights.areas &&
                 Object.keys(insights.areas).length > 0 && (
@@ -791,8 +802,8 @@ function App() {
                                   </div>
                                   <div className="small text-muted">
                                     Growth {s.growth_score.toFixed(1)}/10 •
-                                    Demand {s.demand_score.toFixed(1)}/10 •
-                                    Risk {s.risk_score.toFixed(1)}/10
+                                    Demand {s.demand_score.toFixed(1)}/10 • Risk{" "}
+                                    {s.risk_score.toFixed(1)}/10
                                   </div>
                                 </Card.Body>
                               </Card>
@@ -802,7 +813,7 @@ function App() {
                       </Card.Body>
                     </Card>
 
-                    {/* MICRO INSIGHTS PANEL (Step 7 + 9) */}
+                    {/* Micro-summary with heatmap + sparkline */}
                     <Card className="glass-card mb-3 shadow-sm">
                       <Card.Header>Analyst Micro-Summary</Card.Header>
                       <Card.Body>
@@ -845,9 +856,8 @@ function App() {
                               ))}
                             </Row>
 
-                            {/* Mini Heatmap + Sparkline */}
                             <div className="mt-2">
-                              {/* Heatmap */}
+                              {/* Heatmap blocks */}
                               <div className="d-flex align-items-center mb-1">
                                 {generateHeatmap(
                                   entry.area,
@@ -866,7 +876,7 @@ function App() {
                                 ))}
                               </div>
 
-                              {/* Sparkline */}
+                              {/* Sparkline mini chart */}
                               <svg width="100%" height="40">
                                 {(() => {
                                   const data = generateSparklineData(
@@ -878,7 +888,6 @@ function App() {
                                   const max = Math.max(...data);
                                   const min = Math.min(...data);
                                   const range = max - min || 1;
-
                                   const step = 100 / (data.length - 1);
 
                                   const points = data
@@ -908,7 +917,7 @@ function App() {
                   </>
                 )}
 
-              {/* Trend chart + download actions */}
+              {/* Trend chart + downloads */}
               <Card className="glass-card mb-3 shadow-sm">
                 <Card.Header className="d-flex justify-content-between align-items-center">
                   <span>Trends over time</span>
@@ -963,13 +972,7 @@ function App() {
                 <Card.Body style={{ maxHeight: 320, overflowY: "auto" }}>
                   {responseData.table && responseData.table.length > 0 ? (
                     <div className="table-wrapper">
-                      <Table
-                        striped
-                        hover
-                        size="sm"
-                        responsive
-                        className="mb-0"
-                      >
+                      <Table striped hover size="sm" responsive className="mb-0">
                         <thead>
                           <tr>
                             {Object.keys(responseData.table[0]).map((key) => (

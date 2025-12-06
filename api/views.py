@@ -1,7 +1,7 @@
 import json
 import textwrap
 from io import BytesIO
-
+from . import views
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from reportlab.lib.pagesizes import A4
@@ -42,6 +42,19 @@ def query_view(request):
         year_range=year_range,
         cities=cities or None,
     )
+    # If user requested localities not present in dataset → FAIL CLEANLY
+if filtered_df is None or filtered_df.empty:
+    return JsonResponse({
+        "summary": f"No data found for {areas or cities}. "
+                   f"Try one of these instead: {get_dataset()['final_location'].unique().tolist()[:10]}",
+        "chart": {"labels": [], "datasets": []},
+        "table": [],
+        "areas": areas,
+        "cities": cities,
+        "metric": metric,
+        "year_range": year_range,
+        "insights": {},
+    })
 
     chart = build_chart_data(filtered_df, metric=metric)
     table = build_table_data(filtered_df)
