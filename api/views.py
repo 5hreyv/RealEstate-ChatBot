@@ -6,6 +6,7 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from django.views.decorators.csrf import csrf_exempt
 
 from .utils import (
     extract_areas_from_message,
@@ -207,24 +208,29 @@ def list_localities(request):
     locs = sorted(df["final_location"].dropna().unique().tolist())
     return JsonResponse({"localities": locs})
 
+
 @csrf_exempt
 def debug_localities(request):
-    from django.conf import settings
-    import traceback
-
     try:
         df = get_dataset()
-        areas = df[SCHEMA["area"]].dropna().astype(str).unique().tolist()
+        areas = (
+            df[SCHEMA["area"]]
+            .dropna()
+            .astype(str)
+            .unique()
+            .tolist()
+        )
 
         return JsonResponse({
             "ok": True,
-            "excel_path": settings.EXCEL_PATH,
             "count": len(areas),
-            "sample": areas[:30]
+            "sample": areas[:50],   # first 50
         })
+
     except Exception as e:
+        import traceback
         return JsonResponse({
             "ok": False,
             "error": str(e),
-            "trace": traceback.format_exc()
+            "trace": traceback.format_exc(),
         }, status=500)
