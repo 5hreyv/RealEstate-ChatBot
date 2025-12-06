@@ -94,41 +94,58 @@ def extract_cities_from_message(message: str) -> List[str]:
 
 def extract_areas_from_message(message: str) -> List[str]:
     """
-    Try exact substring match first, then fuzzy matching on tokens.
+    Robust locality extractor:
+    1. Exact phrase match using word boundaries (works for multi-word areas)
+    2. Fallback to fuzzy match if no exact match is found
     """
+
     df = get_dataset()
-    area_col = SCHEMA["area"]
-    areas = df[area_col].dropna().astype(str).unique().tolist()
-    msg = _normalize_text(message)
+    areas = (
+        df[SCHEMA["area"]]
+        .dropna()
+        .astype(str)
+        .unique()
+        .tolist()
+    )
 
-    # 1) Exact-ish substring matches
-    exact = [a for a in areas if _normalize_text(a) in msg]
+    msg = message.lower().strip()
 
-    if exact:
-        return exact
+    # -------------------------------
+    # 1) Exact regex full-phrase match
+    # -------------------------------
+    exact_matches = []
+    for loc in areas:
+        loc_norm = loc.lower().strip()
+        pattern = r"\b" + re.escape(loc_norm) + r"\b"
+        if re.search(pattern, msg):
+            exact_matches.append(loc)
 
-    # 2) Fuzzy over tokens n-grams
+    if exact_matches:
+        return exact_matches
+
+    # -------------------------------
+    # 2) Fuzzy matching fallback
+    # -------------------------------
     tokens = msg.split()
     candidates = set()
+
     for n in range(1, min(3, len(tokens)) + 1):
         for i in range(len(tokens) - n + 1):
             phrase = " ".join(tokens[i : i + n])
             candidates.add(phrase)
 
-    norm_areas = {a: _normalize_text(a) for a in areas}
+    norm_areas = {a: a.lower() for a in areas}
     norm_list = list(norm_areas.values())
 
-    best_matches = set()
+    fuzzy_matches = set()
     for cand in candidates:
-        close = get_close_matches(cand, norm_list, n=3, cutoff=0.8)
-        for m in close:
-            # reverse map from normalized to original
+        close = get_close_matches(cand.lower(), norm_list, n=3, cutoff=0.8)
+        for match in close:
             for orig, norm in norm_areas.items():
-                if norm == m:
-                    best_matches.add(orig)
+                if norm == match:
+                    fuzzy_matches.add(orig)
 
-    return list(best_matches)
-
+    return list(fuzzy_matches)
 
 # ---------- Data filtering ----------
 
@@ -142,21 +159,39 @@ def filter_data(
     year_col = SCHEMA["year"]
     city_col = SCHEMA["city"]
 
+    # Normalizer
+    norm = lambda s: str(s).strip().lower()
+
     filtered = df.copy()
 
-    if cities:
-        filtered = filtered[filtered[city_col].astype(str).isin(cities)]
+    # Normalize full dataset
+    filtered["_area_norm"] = filtered[area_col].apply(norm)
+    filtered["_city_norm"] = filtered[city_col].apply(norm)
 
-    if areas:
-        filtered = filtered[filtered[area_col].astype(str).isin(areas)]
+    # Normalize filters
+    areas_norm = [norm(a) for a in areas] if areas else []
+    cities_norm = [norm(c) for c in cities] if cities else []
 
+    # Filter cities
+    if cities_norm:
+        filtered = filtered[filtered["_city_norm"].isin(cities_norm)]
+
+    # Filter areas (RELAXED — substring allowed)
+    if areas_norm:
+        mask = False
+        for a in areas_norm:
+            mask |= filtered["_area_norm"].str.contains(a)
+        filtered = filtered[mask]
+
+    # Filter year range
     if year_range:
         start, end = year_range
         filtered = filtered[
             (filtered[year_col] >= start) & (filtered[year_col] <= end)
         ]
 
-    return filtered
+    return filtered.drop(columns=["_area_norm", "_city_norm"], errors="ignore")
+
 
 
 def build_chart_data(filtered_df: pd.DataFrame, metric: str = "price") -> Dict[str, Any]:
@@ -428,3 +463,8 @@ def build_llm_summary(filtered_df, areas, cities, year_range, metric: str) -> st
         return resp.output[0].content[0].text
     except Exception:
         return basic
+@csrf_exempt
+def debug_localities(request):
+    df = get_dataset()
+    areas = df[SCHEMA["area"]].dropna().astype(str).unique().tolist()
+    return JsonResponse({"localities": areas})

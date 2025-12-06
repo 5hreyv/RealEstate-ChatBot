@@ -6,4 +6,5 @@ urlpatterns = [
     path("download_csv/", views.download_csv_view),
     path("report_pdf/", views.download_report_view),
     path("localities/", views.list_localities),
+    path("debug_localities/", views.debug_localities),
 ]
