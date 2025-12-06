@@ -82,7 +82,8 @@ function App() {
       params.set("start_year", yr[0]);
       params.set("end_year", yr[1]);
     }
-    const url = `http://localhost:8000/api/download_csv/?${params.toString()}`;
+    const url = `${process.env.REACT_APP_API_URL}download_csv/?${params.toString()}`;
+
     window.open(url, "_blank");
   };
 
@@ -99,7 +100,7 @@ function App() {
       params.set("end_year", yr[1]);
     }
     params.set("metric", metric);
-    const url = `http://localhost:8000/api/report_pdf/?${params.toString()}`;
+    const url = `${process.env.REACT_APP_API_URL}report_pdf/?${params.toString()}`;
     window.open(url, "_blank");
   };
 
