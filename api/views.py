@@ -103,7 +103,7 @@ def download_report_view(request):
     end_year = request.GET.get("end_year")
     metric = request.GET.get("metric", "price")
 
-    year_range = None    # noqa
+    year_range = None
     if start_year and end_year:
         try:
             year_range = (int(start_year), int(end_year))
@@ -199,8 +199,10 @@ def download_report_view(request):
     buffer.seek(0)
 
     response = HttpResponse(buffer, content_type="application/pdf")
-    response["Content-Disposition"] = 'attachment; filename=\"real_estate_report.pdf\"'
+    response["Content-Disposition"] = 'attachment; filename="real_estate_report.pdf"'
     return response
+
+
 @csrf_exempt
 def list_localities(request):
     """
@@ -218,8 +220,6 @@ def list_localities(request):
         areas = sorted(areas)
         return JsonResponse({"localities": areas})
     except Exception as e:
-        # SAFETY NET: if anything goes wrong (e.g. Excel path, permissions),
-        # still return something so the frontend doesn't crash.
         fallback = ["Akurdi", "Ambegaon Budruk", "Aundh", "Wakad"]
         return JsonResponse(
             {
@@ -228,6 +228,8 @@ def list_localities(request):
             },
             status=200,
         )
+
+
 @csrf_exempt
 def debug_localities(request):
     try:

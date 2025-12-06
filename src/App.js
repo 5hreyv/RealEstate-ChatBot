@@ -626,42 +626,43 @@ if (
                 </div>
               )}
 
-              {/* Smart prompt chips */}
               <div className="smart-prompts mt-2">
-                <span
-                  className="prompt-chip"
-                  onClick={() => setMessage("Analyze Wakad")}
-                >
-                  Analyze a locality
-                </span>
+  <span
+    className="prompt-chip"
+    onClick={() => setMessage("Analyze Wakad")}
+  >
+    Analyze a locality
+  </span>
 
-                <span
-                  className="prompt-chip"
-                  onClick={() => setMessage("Compare Ambegaon Budruk and Aundh")}
-                >
-                  Compare areas
-                </span>
+  <span
+    className="prompt-chip"
+    onClick={() => setMessage("Compare Aundh and Wakad")}
+  >
+    Compare areas
+  </span>
 
-                <span
-                  className="prompt-chip"
-                  onClick={() =>
-                    setMessage("Show price trend for Akurdi from 2015 to 2023")
-                  }
-                >
-                  Price trend
-                </span>
+  <span
+    className="prompt-chip"
+    onClick={() =>
+      setMessage("Show price trend for Aundh from 2020 to 2024")
+    }
+  >
+    Price trend
+  </span>
 
-                <span
-                  className="prompt-chip"
-                  onClick={() =>
-                    setMessage(
-                      "Which is better for investment: Aundh or Akurdi?"
-                    )
-                  }
-                >
-                  Investment comparison
-                </span>
-              </div>
+  <span
+    className="prompt-chip"
+    onClick={() =>
+      setMessage(
+        "Which is better for investment: Akurdi or Aundh?"
+      )
+    }
+  >
+    Investment comparison
+  </span>
+</div>
+
+
 
               {/* Input + locality suggestions */}
               <Form onSubmit={handleSend}>
