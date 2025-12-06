@@ -6,9 +6,7 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
-from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from .utils import get_dataset, SCHEMA
 
 from .utils import (
@@ -203,14 +201,33 @@ def download_report_view(request):
     response = HttpResponse(buffer, content_type="application/pdf")
     response["Content-Disposition"] = 'attachment; filename=\"real_estate_report.pdf\"'
     return response
-
 @csrf_exempt
 def list_localities(request):
-    df = get_dataset()
-    areas = df[SCHEMA["area"]].dropna().astype(str).unique().tolist()
-    return JsonResponse({"localities": areas})
-
-
+    """
+    Return unique localities. Never 500 – if Excel fails, return a safe fallback.
+    """
+    try:
+        df = get_dataset()
+        areas = (
+            df[SCHEMA["area"]]
+            .dropna()
+            .astype(str)
+            .unique()
+            .tolist()
+        )
+        areas = sorted(areas)
+        return JsonResponse({"localities": areas})
+    except Exception as e:
+        # SAFETY NET: if anything goes wrong (e.g. Excel path, permissions),
+        # still return something so the frontend doesn't crash.
+        fallback = ["Akurdi", "Ambegaon Budruk", "Aundh", "Wakad"]
+        return JsonResponse(
+            {
+                "localities": fallback,
+                "error": str(e),
+            },
+            status=200,
+        )
 @csrf_exempt
 def debug_localities(request):
     try:
